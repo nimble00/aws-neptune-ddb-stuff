@@ -1,10 +1,28 @@
 Use this script to load data into Ddb - 
 
+# ## 1. ssh into AWS EMR master node 
+nimble00> ssh -i nep.pem hadoop@ec2-123-231-132-213.<region>.compute.amazonaws.com
+EEEEEEEEEEEEEEEEEEEE MMMMMMMM           MMMMMMMM RRRRRRRRRRRRRRR    
+E::::::::::::::::::E M:::::::M         M:::::::M R::::::::::::::R   
+EE:::::EEEEEEEEE:::E M::::::::M       M::::::::M R:::::RRRRRR:::::R 
+  E::::E       EEEEE M:::::::::M     M:::::::::M RR::::R      R::::R
+  E::::E             M::::::M:::M   M:::M::::::M   R:::R      R::::R
+  E:::::EEEEEEEEEE   M:::::M M:::M M:::M M:::::M   R:::RRRRRR:::::R 
+  E::::::::::::::E   M:::::M  M:::M:::M  M:::::M   R:::::::::::RR   
+  E:::::EEEEEEEEEE   M:::::M   M:::::M   M:::::M   R:::RRRRRR::::R  
+  E::::E             M:::::M    M:::M    M:::::M   R:::R      R::::R
+  E::::E       EEEEE M:::::M     MMM     M:::::M   R:::R      R::::R
+EE:::::EEEEEEEE::::E M:::::M             M:::::M   R:::R      R::::R
+E::::::::::::::::::E M:::::M             M:::::M RR::::R      R::::R
+EEEEEEEEEEEEEEEEEEEE MMMMMMM             MMMMMMM RRRRRRR      RRRRRR
+
+# ## 2. create external table with same schema as your data - store it as Optimized Row Columnar (ORC)
 sh> hive
 hive> CREATE EXTERNAL TABLE oft_temp (hive_oid string, hive_si string, hive_p string, hive_d string, hive_ttl bigint) STORED AS ORC;
 
 *ctrl+c*
 
+# ## 3. read your csv data into a pyspark dataframe and create a View and insert it into the Hive table created above
 sh>pyspark
 pyspark> order = spark.read.csv('s3://neptune-bulkload-input/20211111/schema2/ddb_oid_features_load.csv/part-00000-0f4e1efc-0697-473a-a5c6-1abcaaa66fd1-c000.csv', header=True)
 pyspark> order.createOrReplaceTempView("df")
@@ -12,12 +30,17 @@ pyspark> spark.sql("INSERT OVERWRITE TABLE oft_temp SELECT * FROM df")
 
 *ctrl+d*
 
+# ## 4. check whether the data has been loaded
 sh> hive
 hive> select * from oft_temp limit 5;
+
+# ## 5. create the DynamoDB (DDB) connector table which defines column mapping
 hive> CREATE EXTERNAL TABLE hive_ddb_conn (hive_oid string, hive_si string, hive_p string, hive_d string, hive_ttl bigint)
     > STORED BY 'org.apache.hadoop.hive.dynamodb.DynamoDBStorageHandler' 
     > TBLPROPERTIES ("dynamodb.table.name" = "DataStores-Devo-<region>-OrderFeaturesTable", 
     > "dynamodb.column.mapping" = "hive_oid:OID,hive_si:SI,hive_P:P,hive_d:D,hive_ttl:ttl");
+    
+# ## 6. overwrite the DDB connector table with data from CSV which we had loaded into hive table
 hive> INSERT OVERWRITE TABLE hive_ddb_conn SELECT * FROM oft_temp;
 		Query ID = hadoop_20220218205211_78172d53-f301-4470-8776-f3cfaa1918e2
 		Total jobs = 1
@@ -37,7 +60,7 @@ hive> INSERT OVERWRITE TABLE hive_ddb_conn SELECT * FROM oft_temp;
     	
 
 
-Confirm that ingestion was successful - 
+# ## 6. confirm that ingestion was successful
 [cloudshell-user@ip-10-0-27-102 ~]$ aws dynamodb describe-table --table-name DataStores-Devo-<region>-OrderFeaturesTable
 {
     "Table": {
@@ -63,7 +86,7 @@ Confirm that ingestion was successful -
         },
         "TableSizeBytes": 64119384545,
         "ItemCount": 41771587,
-        "TableArn": "arn:aws:dynamodb:eu-west-1:<aws-account-id>:table/DataStores-Devo-eu-west-1-OrderFeaturesTableAE01047E-10I2Q1RVZMPFB",
+        "TableArn": "arn:aws:dynamodb:<region>:<aws-account-id>:table/DataStores-Devo-<region>-OrderFeaturesTable",
         "TableId": "qwewqeqe-c7f1-4d47-xvdf-someid",
         "BillingModeSummary": {
             "BillingMode": "PAY_PER_REQUEST",
@@ -72,3 +95,7 @@ Confirm that ingestion was successful -
     }
 }
 [cloudshell-user@ip-10-0-27-102 ~]$ 
+
+# ## References
+# 1. https://docs.aws.amazon.com/emr/latest/ReleaseGuide/EMR_Interactive_Hive.html
+# 2. https://stackoverflow.com/questions/53044026/how-to-write-pyspark-dataframe-to-dynamodb-table
