@@ -61,7 +61,7 @@ hive> INSERT OVERWRITE TABLE hive_ddb_conn SELECT * FROM oft_temp;
 
 
 # ## 6. confirm that ingestion was successful
-[cloudshell-user@ip-10-0-27-102 ~]$ aws dynamodb describe-table --table-name DataStores-Devo-<region>-OrderFeaturesTable
+[cloudshell-user@ip-xx-xx-xx-xx ~]$ aws dynamodb describe-table --table-name DataStores-Devo-<region>-OrderFeaturesTable
 {
     "Table": {
         "AttributeDefinitions": [
@@ -94,7 +94,7 @@ hive> INSERT OVERWRITE TABLE hive_ddb_conn SELECT * FROM oft_temp;
         }
     }
 }
-[cloudshell-user@ip-10-0-27-102 ~]$ 
+[cloudshell-user@ip-xx-xx-xx-xx ~]$ 
 
 # ## References
 # 1. https://docs.aws.amazon.com/emr/latest/ReleaseGuide/EMR_Interactive_Hive.html
