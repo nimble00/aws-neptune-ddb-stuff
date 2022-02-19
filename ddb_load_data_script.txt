@@ -16,7 +16,7 @@ sh> hive
 hive> select * from oft_temp limit 5;
 hive> CREATE EXTERNAL TABLE hive_ddb_conn (hive_oid string, hive_si string, hive_p string, hive_d string, hive_ttl bigint)
     > STORED BY 'org.apache.hadoop.hive.dynamodb.DynamoDBStorageHandler' 
-    > TBLPROPERTIES ("dynamodb.table.name" = "DataStores-Devo-eu-west-1-OrderFeaturesTableAE01047E-10I2Q1RVZMPFB", 
+    > TBLPROPERTIES ("dynamodb.table.name" = "DataStores-Devo-<region>-OrderFeaturesTable", 
     > "dynamodb.column.mapping" = "hive_oid:OID,hive_si:SI,hive_P:P,hive_d:D,hive_ttl:ttl");
 hive> INSERT OVERWRITE TABLE hive_ddb_conn SELECT * FROM oft_temp;
 		Query ID = hadoop_20220218205211_78172d53-f301-4470-8776-f3cfaa1918e2
@@ -27,7 +27,48 @@ hive> INSERT OVERWRITE TABLE hive_ddb_conn SELECT * FROM oft_temp;
 		----------------------------------------------------------------------------------------------
 		        VERTICES      MODE        STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED  
 		----------------------------------------------------------------------------------------------
-		Map 1            container       RUNNING     12          0        7        5       0       0  
+		Map 1 .......... container     SUCCEEDED     12         12        0        0       0       0  
 		----------------------------------------------------------------------------------------------
-		VERTICES: 00/01  [>>--------------------------] 0%    ELAPSED TIME: 845.77 s   
+		VERTICES: 01/01  [==========================>>] 100%  ELAPSED TIME: 5876.29 s  
 		----------------------------------------------------------------------------------------------
+		OK
+		Time taken: 5878.107 seconds
+		hive> 
+    	
+
+
+Confirm that ingestion was successful - 
+[cloudshell-user@ip-10-0-27-102 ~]$ aws dynamodb describe-table --table-name DataStores-Devo-<region>-OrderFeaturesTable
+{
+    "Table": {
+        "AttributeDefinitions": [
+            {
+                "AttributeName": "OID",
+                "AttributeType": "S"
+            }
+        ],
+        "TableName": "DataStores-Devo-<region>-OrderFeaturesTable",
+        "KeySchema": [
+            {
+                "AttributeName": "OID",
+                "KeyType": "HASH"
+            }
+        ],
+        "TableStatus": "ACTIVE",
+        "CreationDateTime": "2022-02-16T16:27:34.550000+00:00",
+        "ProvisionedThroughput": {
+            "NumberOfDecreasesToday": 0,
+            "ReadCapacityUnits": 0,
+            "WriteCapacityUnits": 0
+        },
+        "TableSizeBytes": 64119384545,
+        "ItemCount": 41771587,
+        "TableArn": "arn:aws:dynamodb:eu-west-1:<aws-account-id>:table/DataStores-Devo-eu-west-1-OrderFeaturesTableAE01047E-10I2Q1RVZMPFB",
+        "TableId": "qwewqeqe-c7f1-4d47-xvdf-someid",
+        "BillingModeSummary": {
+            "BillingMode": "PAY_PER_REQUEST",
+            "LastUpdateToPayPerRequestDateTime": "2022-02-18T14:36:14.138000+00:00"
+        }
+    }
+}
+[cloudshell-user@ip-10-0-27-102 ~]$ 
