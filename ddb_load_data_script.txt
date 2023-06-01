@@ -18,30 +18,30 @@ EEEEEEEEEEEEEEEEEEEE MMMMMMM             MMMMMMM RRRRRRR      RRRRRR
 
 # ## 2. create external table with same schema as your data - store it as Optimized Row Columnar (ORC)
 sh> hive
-hive> CREATE EXTERNAL TABLE oft_temp (hive_oid string, hive_si string, hive_p string, hive_d string, hive_ttl bigint) STORED AS ORC;
+hive> CREATE EXTERNAL TABLE ddb_orders (hive_oid string, hive_dv string, hive_si string, hive_p string, hive_d string, hive_ttl bigint) STORED AS ORC;
 
 *ctrl+c*
 
 # ## 3. read your csv data into a pyspark dataframe and create a View and insert it into the Hive table created above
 sh>pyspark
-pyspark> order = spark.read.csv('s3://neptune-bulkload-input/20211111/schema2/ddb_oid_features_load.csv/part-00000-0f4e1efc-0697-473a-a5c6-1abcaaa66fd1-c000.csv', header=True)
-pyspark> order.createOrReplaceTempView("df")
-pyspark> spark.sql("INSERT OVERWRITE TABLE oft_temp SELECT * FROM df")
+pyspark> order = spark.read.csv("s3://graf-backfill/graf_prod/jun1/ddborders/", header=True)
+pyspark> order.createOrReplaceTempView("df1")
+pyspark> spark.sql("INSERT OVERWRITE TABLE ddb_orders SELECT * FROM df1")
 
 *ctrl+d*
 
 # ## 4. check whether the data has been loaded
 sh> hive
-hive> select * from oft_temp limit 5;
+hive> select * from ddb_orders limit 5;
 
 # ## 5. create the DynamoDB (DDB) connector table which defines column mapping
-hive> CREATE EXTERNAL TABLE hive_ddb_conn (hive_oid string, hive_si string, hive_p string, hive_d string, hive_ttl bigint)
-    > STORED BY 'org.apache.hadoop.hive.dynamodb.DynamoDBStorageHandler' 
-    > TBLPROPERTIES ("dynamodb.table.name" = "DataStores-Devo-<region>-OrderFeaturesTable", 
-    > "dynamodb.column.mapping" = "hive_oid:OID,hive_si:SI,hive_P:P,hive_d:D,hive_ttl:ttl");
+hive> CREATE EXTERNAL TABLE hive_ddb_conn (hive_oid string, hive_dv string, hive_si string, hive_p string, hive_d string, hive_ttl bigint)
+    > STORED BY 'org.apache.hadoop.hive.dynamodb.DynamoDBStorageHandler'
+    > TBLPROPERTIES ("dynamodb.table.name" = "OrderFeaturesTableV2",
+    > "dynamodb.column.mapping" = "hive_oid:OID,hive_dv:DateVars,hive_si:SugarIndexVars,hive_p:pfw_cancelled_date,hive_d:cust_acct_closure_date,hive_ttl:ttl");
     
 # ## 6. overwrite the DDB connector table with data from CSV which we had loaded into hive table
-hive> INSERT OVERWRITE TABLE hive_ddb_conn SELECT * FROM oft_temp;
+hive> INSERT INTO TABLE hive_ddb_conn SELECT * FROM ddb_orders;
 		Query ID = hadoop_20220218205211_78172d53-f301-4470-8776-f3cfaa1918e2
 		Total jobs = 1
 		Launching Job 1 out of 1
