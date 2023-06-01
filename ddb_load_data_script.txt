@@ -25,6 +25,7 @@ hive> CREATE EXTERNAL TABLE ddb_orders (hive_oid string, hive_dv string, hive_si
 # ## 3. read your csv data into a pyspark dataframe and create a View and insert it into the Hive table created above
 sh>pyspark
 pyspark> order = spark.read.csv("s3://graf-backfill/graf_prod/jun1/ddborders/", header=True)
+pyspark> order = order.withColumn('ttl', order['ttl'].cast('double'))
 pyspark> order.createOrReplaceTempView("df1")
 pyspark> spark.sql("INSERT OVERWRITE TABLE ddb_orders SELECT * FROM df1")
 
